@@ -1800,14 +1800,29 @@ function deleteTxn(id) {
    TOTALS
 ===================================================== */
 function getTotals() {
-  const inc     = transactions.filter(t => t.type === 'ingreso').reduce((s,t) => s+t.amount, 0);
-  const exp     = transactions.filter(t => t.type === 'gasto').reduce((s,t) => s+t.amount, 0);
-  const savMan  = transactions.filter(t => t.type === 'ahorro').reduce((s,t) => s+t.amount, 0);
-  // Saldo no gastado del ingreso (después de gastos y ahorros manuales)
-  const surplus = Math.max(0, inc - exp - savMan);
-  // Ahorro efectivo total: lo que guardaste manualmente + lo que no gastaste
-  const sav     = savMan + surplus;
-  return { inc, exp, savMan, surplus, sav, net: inc - exp - savMan };
+
+  const inc = transactions
+    .filter(t => t.type === 'ingreso')
+    .reduce((s,t) => s + Number(t.amount), 0);
+
+  const exp = transactions
+    .filter(t => t.type === 'gasto')
+    .reduce((s,t) => s + Number(t.amount), 0);
+
+  const savMan = transactions
+    .filter(t => t.type === 'ahorro')
+    .reduce((s,t) => s + Number(t.amount), 0);
+
+  const available = inc - exp - savMan;
+
+  return {
+    inc,
+    exp,
+    savMan,
+    surplus: available,
+    sav: savMan,
+    net: available
+  };
 }
 
 function getWeeklyAvg() {
