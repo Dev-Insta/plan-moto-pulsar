@@ -1508,9 +1508,15 @@ function loadData() {
     if (st) transactions = JSON.parse(st);
   } catch(e) {}
 }
-function saveData() {
+async function saveData() {
+  // Sigue guardando en LocalStorage como siempre
   localStorage.setItem(KEY_TXN, JSON.stringify(transactions));
   localStorage.setItem(KEY_CFG, JSON.stringify(cfg));
+
+  // Agrega la sincronización silenciosa a Firebase si ya está disponible en el entorno
+  if (typeof window.saveCloud === "function") {
+    await window.saveCloud();
+  }
 }
 
 /* =====================================================
@@ -2312,6 +2318,62 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+</script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+  // Tu configuración de Firebase
+  const firebaseConfig = {
+    apiKey: "TU_API_KEY",
+    authDomain: "planahorro-c905f.firebaseapp.com",
+    projectId: "planahorro-c905f",
+    storageBucket: "planahorro-c905f.firebasestorage.app",
+    messagingSenderId: "1087797856458",
+    appId: "1:1087797856458:web:6cd50d43dfea3fa5320c33"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Compartimos las funciones necesarias con el alcance global (window)
+  // Usamos un ID fijo ("mi_cuenta_personal") ya que la app es de uso exclusivo para ti
+  const DOC_REF = doc(db, "users", "mi_cuenta_personal");
+
+  window.saveCloud = async function() {
+    try {
+      await setDoc(DOC_REF, {
+        cfg: window.cfg,
+        transactions: window.transactions,
+        updatedAt: new Date().toISOString()
+      });
+      console.log("Sincronizado en la nube correctamente.");
+    } catch (error) {
+      console.error("Error al guardar en Firebase:", error);
+    }
+  };
+
+  window.loadCloud = async function() {
+    try {
+      const snap = await getDoc(DOC_REF);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.cfg) window.cfg = data.cfg;
+        if (data.transactions) window.transactions = data.transactions;
+        console.log("Datos cargados desde la nube con éxito.");
+      }
+    } catch (error) {
+      console.error("Error al cargar desde Firebase:", error);
+    }
+    
+    // Ejecutamos tus funciones nativas de renderizado una vez se descarguen los datos
+    if (typeof window.renderDashboard === "function") window.renderDashboard();
+    if (typeof window.renderHistorial === "function") window.renderHistorial();
+    if (typeof window.renderEstadisticas === "function") window.renderEstadisticas();
+  };
+
+  // Carga automática inicial al abrir la aplicación
+  window.loadCloud();
 </script>
 </body>
 </html>
