@@ -1508,16 +1508,16 @@ function loadData() {
     if (st) transactions = JSON.parse(st);
   } catch(e) {}
 }
-async function saveData() {
-  // Sigue guardando en LocalStorage como siempre
+function saveData() {
+  // Tu lógica de siempre para guardar localmente
   localStorage.setItem(KEY_TXN, JSON.stringify(transactions));
   localStorage.setItem(KEY_CFG, JSON.stringify(cfg));
 
-  // Agrega la sincronización silenciosa a Firebase si ya está disponible en el entorno
+  // LA ÚNICA LÍNEA NUEVA: Si la función existe, envía los datos actualizados a Firebase
   if (typeof window.saveCloud === "function") {
-    await window.saveCloud();
+    window.saveCloud();
   }
-}
+}   
 
 /* =====================================================
    NAVIGATION
@@ -2321,11 +2321,10 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-  // Tu configuración de Firebase
   const firebaseConfig = {
-    apiKey: "TU_API_KEY",
+    apiKey: "TU_API_KEY", // Pon tu API Key real aquí
     authDomain: "planahorro-c905f.firebaseapp.com",
     projectId: "planahorro-c905f",
     storageBucket: "planahorro-c905f.firebasestorage.app",
@@ -2335,11 +2334,33 @@ document.addEventListener('DOMContentLoaded', init);
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
-
-  // Compartimos las funciones necesarias con el alcance global (window)
-  // Usamos un ID fijo ("mi_cuenta_personal") ya que la app es de uso exclusivo para ti
   const DOC_REF = doc(db, "users", "mi_cuenta_personal");
 
+  // 1. ESCUCHA EN TIEMPO REAL (Sincronización automática entrante)
+  // Cada vez que la base de datos cambie (porque guardaste en la PC), este bloque se ejecuta solo en tu celular.
+  onSnapshot(DOC_REF, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      
+      // Asignamos los datos directamente a tus variables globales actuales
+      if (data.cfg) window.cfg = data.cfg;
+      if (data.transactions) window.transactions = data.transactions;
+
+      // Guardamos en el localStorage local para mantener consistencia
+      localStorage.setItem('transactions', JSON.stringify(window.transactions));
+      localStorage.setItem('cfg', JSON.stringify(window.cfg));
+
+      // Ejecutamos TUS funciones de renderizado automágicamente para refrescar la pantalla
+      // (Asegúrate de que se llamen exactamente así en tus 1500 líneas)
+      if (typeof window.renderDashboard === "function") window.renderDashboard();
+      if (typeof window.renderHistorial === "function") window.renderHistorial();
+      if (typeof window.renderEstadisticas === "function") window.renderEstadisticas();
+      
+      console.log("🔄 ¡Aplicación sincronizada con la nube en tiempo real!");
+    }
+  });
+
+  // 2. FUNCIÓN PARA SUBIR DATOS (Sincronización saliente)
   window.saveCloud = async function() {
     try {
       await setDoc(DOC_REF, {
@@ -2347,33 +2368,10 @@ document.addEventListener('DOMContentLoaded', init);
         transactions: window.transactions,
         updatedAt: new Date().toISOString()
       });
-      console.log("Sincronizado en la nube correctamente.");
-    } catch (error) {
-      console.error("Error al guardar en Firebase:", error);
+    } catch (e) {
+      console.error("Error al sincronizar con la nube:", e);
     }
   };
-
-  window.loadCloud = async function() {
-    try {
-      const snap = await getDoc(DOC_REF);
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.cfg) window.cfg = data.cfg;
-        if (data.transactions) window.transactions = data.transactions;
-        console.log("Datos cargados desde la nube con éxito.");
-      }
-    } catch (error) {
-      console.error("Error al cargar desde Firebase:", error);
-    }
-    
-    // Ejecutamos tus funciones nativas de renderizado una vez se descarguen los datos
-    if (typeof window.renderDashboard === "function") window.renderDashboard();
-    if (typeof window.renderHistorial === "function") window.renderHistorial();
-    if (typeof window.renderEstadisticas === "function") window.renderEstadisticas();
-  };
-
-  // Carga automática inicial al abrir la aplicación
-  window.loadCloud();
 </script>
 </body>
 </html>
