@@ -1544,19 +1544,29 @@ async function saveCloud() {
 
   try {
 
-    await supabase
+    const cleanCfg = JSON.parse(
+      JSON.stringify(cfg)
+    );
+
+    const cleanTransactions = JSON.parse(
+      JSON.stringify(transactions)
+    );
+
+    const { error } = await supabase
       .from('app_data')
       .upsert({
         id: 1,
         data: {
-          cfg,
-          transactions
+          cfg: cleanCfg,
+          transactions: cleanTransactions
         }
       });
 
-  } catch(err) {
+    console.log("Guardado:", error);
 
-    console.error("Error guardando:", err);
+  } catch(err){
+
+    console.error(err);
 
   }
 
