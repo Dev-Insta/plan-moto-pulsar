@@ -1813,15 +1813,16 @@ function getTotals() {
     .filter(t => t.type === 'ahorro')
     .reduce((s,t) => s + Number(t.amount), 0);
 
-  const available = inc - exp - savMan;
+  // Todo gasto reduce directamente el progreso
+  const sav = Math.max(0, inc + savMan - exp);
 
   return {
     inc,
     exp,
     savMan,
-    surplus: available,
-    sav: savMan,
-    net: available
+    surplus: Math.max(0, inc - exp),
+    sav,
+    net: inc + savMan - exp
   };
 }
 
