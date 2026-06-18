@@ -1500,25 +1500,97 @@ let regTab = 'ingreso';
 let selectedCat = 'Universidad';
 
 /* ---- Load ---- */
-function loadData() {
+async function loadData() {
+
   try {
+
+    await loadCloud();
+
+  } catch(e) {
+
     const sc = localStorage.getItem(KEY_CFG);
-    if (sc) cfg = { ...cfg, ...JSON.parse(sc) };
+
+    if (sc)
+      cfg = {
+        ...cfg,
+        ...JSON.parse(sc)
+      };
+
     const st = localStorage.getItem(KEY_TXN);
-    if (st) transactions = JSON.parse(st);
-  } catch(e) {}
-}
-function saveData() {
-  // Tu lógica de siempre para guardar localmente
-  localStorage.setItem(KEY_TXN, JSON.stringify(transactions));
-  localStorage.setItem(KEY_CFG, JSON.stringify(cfg));
 
-  // LA ÚNICA LÍNEA NUEVA: Si la función existe, envía los datos actualizados a Firebase
-  if (typeof window.saveCloud === "function") {
-    window.saveCloud();
+    if (st)
+      transactions = JSON.parse(st);
+
   }
-}   
 
+}
+async function saveData() {
+
+  localStorage.setItem(
+    KEY_TXN,
+    JSON.stringify(transactions)
+  );
+
+  localStorage.setItem(
+    KEY_CFG,
+    JSON.stringify(cfg)
+  );
+
+  await saveCloud();
+
+}
+
+async function saveCloud() {
+
+  try {
+
+    await supabase
+      .from('app_data')
+      .upsert({
+        id: 1,
+        data: {
+          cfg,
+          transactions
+        }
+      });
+
+  } catch(err) {
+
+    console.error("Error guardando:", err);
+
+  }
+
+}
+
+async function loadCloud() {
+
+  try {
+
+    const { data, error } = await supabase
+      .from('app_data')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if(error) {
+      console.error(error);
+      return;
+    }
+
+    if(data && data.data){
+
+      cfg = data.data.cfg || cfg;
+      transactions = data.data.transactions || [];
+
+    }
+
+  } catch(err){
+
+    console.error("Error cargando:", err);
+
+  }
+
+}
 /* =====================================================
    NAVIGATION
 ===================================================== */
@@ -2300,78 +2372,43 @@ function toast(msg, type='success') {
 /* =====================================================
    INIT
 ===================================================== */
-function init() {
+async function init() {
+
   // Set today's date on all date inputs
   const today = new Date().toISOString().split('T')[0];
+
   ['reg-inc-date','reg-exp-date','reg-sav-date'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
 
-  loadData();
+  await loadData();
+
   loadConfigForm();
+
   renderDashboard();
+
   updateBadge();
 
-  // Trigger velocimeter animation after paint
-  setTimeout(() => renderDashboard(), 100);
+  setTimeout(() => {
+    renderDashboard();
+  }, 100);
+
 }
 
 document.addEventListener('DOMContentLoaded', init);
 </script>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js'
 
-  const firebaseConfig = {
-    apiKey: "TU_API_KEY", // Pon tu API Key real aquí
-    authDomain: "planahorro-c905f.firebaseapp.com",
-    projectId: "planahorro-c905f",
-    storageBucket: "planahorro-c905f.firebasestorage.app",
-    messagingSenderId: "1087797856458",
-    appId: "1:1087797856458:web:6cd50d43dfea3fa5320c33"
-  };
+const supabase = createClient(
+  'https://reotnimgxnpkgcojkehg.supabase.co',
+  'sb_publishable_fz8T80T694I34XsXxtQGAQ_-9fVqHx0'
+)
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const DOC_REF = doc(db, "users", "mi_cuenta_personal");
+window.supabase = supabase
 
-  // 1. ESCUCHA EN TIEMPO REAL (Sincronización automática entrante)
-  // Cada vez que la base de datos cambie (porque guardaste en la PC), este bloque se ejecuta solo en tu celular.
-  onSnapshot(DOC_REF, (snap) => {
-    if (snap.exists()) {
-      const data = snap.data();
-      
-      // Asignamos los datos directamente a tus variables globales actuales
-      if (data.cfg) window.cfg = data.cfg;
-      if (data.transactions) window.transactions = data.transactions;
-
-      // Guardamos en el localStorage local para mantener consistencia
-      localStorage.setItem('transactions', JSON.stringify(window.transactions));
-      localStorage.setItem('cfg', JSON.stringify(window.cfg));
-
-      // Ejecutamos TUS funciones de renderizado automágicamente para refrescar la pantalla
-      // (Asegúrate de que se llamen exactamente así en tus 1500 líneas)
-      if (typeof window.renderDashboard === "function") window.renderDashboard();
-      if (typeof window.renderHistorial === "function") window.renderHistorial();
-      if (typeof window.renderEstadisticas === "function") window.renderEstadisticas();
-      
-      console.log("🔄 ¡Aplicación sincronizada con la nube en tiempo real!");
-    }
-  });
-
-  // 2. FUNCIÓN PARA SUBIR DATOS (Sincronización saliente)
-  window.saveCloud = async function() {
-    try {
-      await setDoc(DOC_REF, {
-        cfg: window.cfg,
-        transactions: window.transactions,
-        updatedAt: new Date().toISOString()
-      });
-    } catch (e) {
-      console.error("Error al sincronizar con la nube:", e);
-    }
-  };
+console.log("Supabase conectado:", supabase);
 </script>
 </body>
 </html>
