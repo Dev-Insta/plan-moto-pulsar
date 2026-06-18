@@ -2406,6 +2406,26 @@ async function init() {
 
 }
 
+setInterval(async () => {
+
+  const oldData = JSON.stringify(transactions);
+
+  await loadCloud();
+
+  const newData = JSON.stringify(transactions);
+
+  if (oldData !== newData) {
+
+    renderDashboard();
+    renderHistorial();
+    updateBadge();
+
+    console.log("Datos actualizados");
+
+  }
+
+}, 5000);
+
 document.addEventListener('DOMContentLoaded', init);
 </script>
 <script type="module">
